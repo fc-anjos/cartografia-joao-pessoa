@@ -365,7 +365,7 @@ def plot_categorical(
     # operator_t.MULTIPLY.patch_artist(plot)
     # operator_t.SOURCE.patch_artist(empreendimentos_plot)
 
-    plt.savefig("OUTPUT" + output + ".pdf")
-    plt.savefig("OUTPUT" + output + ".png")
+    plt.savefig("OUTPUT/" + output + ".pdf")
+    plt.savefig("OUTPUT/" + output + ".png")
 
     plt.show()
