@@ -17,15 +17,6 @@ import string
 mpl.rc("font", family="DejaVu Sans")
 
 
-def replace_legend_items(legend, mapping):
-    for txt in legend.texts:
-        k = txt.get_text()
-        try:
-            txt.set_text(mapping[int(float(k))])
-        except ValueError:
-            pass
-
-
 def crop(ax, factor_top, factor_right, factor_bottom, factor_left):
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
@@ -175,10 +166,199 @@ def anotate_bairros(ax, plt, bairros_recorte, x, y):
             bbox={"facecolor": "none", "edgecolor": "none"},
         )
 
-        full_string += "{0}- {1} \n".format(dict_letters[count], row["NM_BAIRRO"])
+        full_string += "{0}        {1} \n".format(dict_letters[count], row["NM_BAIRRO"])
 
     full_string = full_string[:-2]
 
     plt.annotate(
-        full_string, (x, y), xycoords="figure fraction", backgroundcolor="w", alpha=0.7
+        full_string,
+        (x, y),
+        xycoords="figure fraction",
+        bbox=dict(alpha=0.75, fc="white", ec="#cccccc"),
     )
+
+
+def plot_qualitative(
+    df,
+    column,
+    k,
+    alpha,
+    borders,
+    avenidas,
+    lotes_empreendimentos,
+    bairros_recorte,
+    x,
+    y,
+    output,
+    annotation_pos_1,
+    annotation_pos_2,
+    annotation_pos_3,
+    zoom,
+    legend_title,
+    scale_extension=1,
+    factor_top=1,
+    factor_right=1,
+    factor_bottom=1,
+    factor_left=1,
+    legend_y=0.07,
+    annotate_bairros=True,
+    annotate_lotes=False,
+    plot_avenidas=False,
+):
+
+    mpl.rcParams.update(mpl.rcParamsDefault)
+    plt.rcParams["figure.figsize"] = (15, 15)
+    plt.rcParams["axes.spines.left"] = False
+    plt.rcParams["axes.spines.right"] = False
+    plt.rcParams["axes.spines.top"] = False
+    plt.rcParams["axes.spines.bottom"] = False
+    plt.style.use("ggplot")
+    plt.rcParams["figure.facecolor"] = "#ffffff"
+    plt.rcParams["figure.edgecolor"] = "red"
+    mpl.rcParams["legend.facecolor"] = "#ffffff"
+    mpl.rcParams["figure.edgecolor"] = "black"
+    mpl.rcParams["legend.loc"] = "lower center"
+
+    fig = plt.figure(figsize=(15, 15))
+    gs1 = gridspec.GridSpec(2, 1, height_ratios=[10, 0.5])
+    gs1.update(wspace=0.01, hspace=0.01)
+    ax = plt.subplot(gs1[0], projection=ccrs.epsg(3857))
+    cax = plt.subplot(gs1[1])
+    plt.subplots_adjust(wspace=0, hspace=0)
+    ax.set_facecolor("none")
+    # ax.set_axis_off()
+
+    plot = df.plot(
+        ax=ax,
+        column=column,
+        cmap="viridis_r",
+        linewidth=1,
+        scheme="quantiles",
+        k=k,
+        edgecolor="#FFFFFF",
+        alpha=alpha,
+        zorder=1,
+    )
+
+    crop(ax, factor_top, factor_right, factor_bottom, factor_left)
+
+    cmap = mpl.cm.viridis.reversed()
+    divider = make_axes_locatable(ax)
+
+    bins = get_bins(df, column, k=k)
+
+    norm = mpl.colors.BoundaryNorm(bins, cmap.N)
+
+    for i, border in enumerate(borders):
+        border_plot = border.plot(
+            ax=ax,
+            facecolor="none",
+            edgecolor="black",
+            linewidth=(0.6 + (i + 1 / 2)),
+            linestyle="--",
+        )
+
+    if plot_avenidas:
+        avenidas.plot(
+            ax=ax, facecolor="none", edgecolor="tab:red", linewidth=1.5, alpha=0.7
+        )
+        ax.text(-3880153.607, -794580.444, s="Avenida Pres. Epitácio Pessoa", alpha=0.9)
+        ax.text(
+            -3881553.607, -795300.444, s="Avenida Beira Rio", rotation=-25, alpha=0.9
+        )
+
+    ctx.add_basemap(
+        ax,
+        source=ctx.providers.Stamen.TonerBackground,
+        zoom=zoom,
+        alpha=0.2,
+        attribution="",
+        zorder=0,
+    )
+
+    legend_elements = []
+
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            color="#2BBDCC",
+            lw=2,
+            label="Novos Empreendimentos",
+            linestyle="--",
+        ),
+        Line2D([0], [0], color="#000000", lw=2, label="Área Foco", linestyle="--"),
+    ]
+
+    # Create the figure
+    ax.legend(handles=legend_elements, loc="lower left")
+
+    scale = scale_bar(ax, ccrs.epsg(3857), scale_extension)
+
+    plt.annotate(
+        "Fonte: IBGE - Censo 2010",
+        (0, 0),
+        annotation_pos_1,
+        xycoords="axes fraction",
+        textcoords="offset points",
+        va="center",
+    )
+    plt.annotate(
+        "Base Cartográfica por Stamen Design",
+        (0, 0),
+        annotation_pos_2,
+        xycoords="axes fraction",
+        textcoords="offset points",
+        va="center",
+    )
+
+    # cax = divider.append_axes("bottom", size="5%", pad=0.05)
+    # plt.tight_layout(pad=0)
+
+    cb = mpl.colorbar.ColorbarBase(
+        ax=cax,
+        cmap=cmap,
+        norm=norm,
+        spacing="uniform",
+        orientation="horizontal",
+        extend="neither",
+        ticks=bins,
+        drawedges=True,
+        alpha=alpha,
+    )
+    cb.outline.set_edgecolor("#ffffff")
+    cb.dividers.set_linewidth(3)
+
+    bairros_recorte.plot(
+        ax=ax, facecolor="none", edgecolor="black", linewidth=0.6, alpha=0.6
+    )
+
+    if annotate_bairros:
+        anotate_bairros(ax, plt, bairros_recorte, x, y)
+
+    pos1 = cax.get_position()  # get the original position
+    pos2 = [pos1.x0 + 0.004, pos1.y0 + legend_y, pos1.width, pos1.height]
+    cax.set_position(pos2)  # set a new position
+    cax.tick_params(colors="none")
+    plt.setp(cax.get_xticklabels(), color="black")
+
+    plt.annotate(
+        legend_title,
+        (0, 0),
+        annotation_pos_3,
+        xycoords="axes fraction",
+        textcoords="offset points",
+        va="center",
+    )
+
+    empreendimentos_plot = lotes_empreendimentos.plot(
+        ax=ax, facecolor="none", edgecolor="tab:cyan", linewidth=(2.5), linestyle="--"
+    )
+
+    if annotate_lotes:
+        anotate_lotes(ax, plt, lotes_empreendimentos)
+    # operator_t.MULTIPLY.patch_artist(plot)
+    # operator_t.SOURCE.patch_artist(empreendimentos_plot)
+
+    plt.savefig("OUTPUT/" + output + ".pdf", bbox_inches="tight")
+    plt.savefig("OUTPUT/" + output + ".png", bbox_inches="tight")
