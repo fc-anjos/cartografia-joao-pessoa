@@ -90,7 +90,7 @@ def utm_from_lon(lon):
 
 
 def scale_bar(
-    ax, proj, length, location=(0.15, 0.075), linewidth=3, units="km", m_per_unit=1000
+    ax, proj, length, location=(0.5, 0.03), linewidth=3, units="km", m_per_unit=1000
 ):
 
     # find lat/lon center to find best UTM zone
@@ -104,7 +104,7 @@ def scale_bar(
     # Generate the x coordinate for the ends of the scalebar
     bar_xs = [sbcx - length * m_per_unit / 2, sbcx + length * m_per_unit / 2]
     # buffer for scalebar
-    buffer = [patheffects.withStroke(linewidth=5, foreground="w")]
+    # buffer = [patheffects.withStroke(linewidth=5, foreground="w")]
     # Plot the scalebar with buffer
     ax.plot(
         bar_xs,
@@ -112,10 +112,10 @@ def scale_bar(
         transform=utm,
         color="k",
         linewidth=linewidth,
-        path_effects=buffer,
+        # path_effects=buffer,
     )
     # buffer for text
-    buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
+    # buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     # Plot the scalebar label
     t0 = ax.text(
         sbcx,
@@ -124,10 +124,10 @@ def scale_bar(
         transform=utm,
         horizontalalignment="center",
         verticalalignment="bottom",
-        path_effects=buffer,
+        # path_effects=buffer,
         zorder=2,
     )
-    left = x0 + (x1 - x0) * 0.02
+    left = x0 + (x1 - x0) * (location[0] - 0.12)
     # Plot the N arrow
     t1 = ax.text(
         left,
@@ -135,36 +135,14 @@ def scale_bar(
         u"\u25B2\nN",
         transform=utm,
         horizontalalignment="center",
-        verticalalignment="bottom",
-        path_effects=buffer,
+        verticalalignment="center",
+        # path_effects=buffer,
         zorder=2,
     )
+
     # Plot the scalebar without buffer, in case covered by text buffer
     ax.plot(
         bar_xs, [sbcy, sbcy], transform=utm, color="k", linewidth=linewidth, zorder=3
-    )
-
-
-def anotate_bairros(ax, plt, bairros_recorte, x, y):
-    dict_letters = dict(enumerate(string.ascii_uppercase, 1))
-    count = 0
-    full_string = ""
-    for idx, row in bairros_recorte.iterrows():
-        count += 1
-        ax.text(
-            row.coords[0],
-            row.coords[1],
-            s=dict_letters[count],
-            horizontalalignment="center",
-            bbox={"facecolor": "none", "edgecolor": "none"},
-        )
-
-        full_string += "{0}- {1} \n".format(dict_letters[count], row["NM_BAIRRO"])
-
-    full_string = full_string[:-2]
-
-    plt.annotate(
-        full_string, (x, y), xycoords="figure fraction", backgroundcolor="w", alpha=0.7
     )
 
 
@@ -181,12 +159,38 @@ def anotate_lotes(ax, plt, lotes_empreendimentos):
         )
 
 
+def anotate_bairros(ax, plt, bairros_recorte, x, y):
+    dict_letters = dict(enumerate(string.ascii_uppercase, 1))
+    count = 0
+    full_string = ""
+    for idx, row in bairros_recorte.iterrows():
+        count += 1
+
+        ax.text(
+            float(row.coordsX),
+            float(row.coordsY),
+            s=dict_letters[count],
+            horizontalalignment="right",
+            verticalalignment="top",
+            bbox={"facecolor": "none", "edgecolor": "none"},
+        )
+
+        full_string += "{0}- {1} \n".format(dict_letters[count], row["NM_BAIRRO"])
+
+    full_string = full_string[:-2]
+
+    plt.annotate(
+        full_string, (x, y), xycoords="figure fraction", backgroundcolor="w", alpha=0.7
+    )
+
+
 def plot_categorical(
     df,
     column,
     k,
     alpha,
     borders,
+    avenidas,
     lotes_empreendimentos,
     bairros_recorte,
     x,
@@ -204,6 +208,8 @@ def plot_categorical(
     factor_left=1,
     legend_y=0.07,
     annotate_bairros=True,
+    annotate_lotes=False,
+    plot_avenidas=False,
 ):
 
     mpl.rcParams.update(mpl.rcParamsDefault)
@@ -226,7 +232,7 @@ def plot_categorical(
     cax = plt.subplot(gs1[1])
     plt.subplots_adjust(wspace=0, hspace=0)
     ax.set_facecolor("none")
-    ax.set_axis_off()
+    # ax.set_axis_off()
 
     plot = df.plot(
         ax=ax,
@@ -256,6 +262,15 @@ def plot_categorical(
             edgecolor="black",
             linewidth=(0.6 + (i + 1 / 2)),
             linestyle="--",
+        )
+
+    if plot_avenidas:
+        avenidas.plot(
+            ax=ax, facecolor="none", edgecolor="tab:red", linewidth=1.5, alpha=0.7
+        )
+        ax.text(-3880153.607, -794580.444, s="Avenida Pres. Epitácio Pessoa", alpha=0.9)
+        ax.text(
+            -3881553.607, -795300.444, s="Avenida Beira Rio", rotation=-25, alpha=0.9
         )
 
     ctx.add_basemap(
@@ -345,7 +360,8 @@ def plot_categorical(
         ax=ax, facecolor="none", edgecolor="tab:cyan", linewidth=(2.5), linestyle="--"
     )
 
-    anotate_lotes(ax, plt, lotes_empreendimentos)
+    if annotate_lotes:
+        anotate_lotes(ax, plt, lotes_empreendimentos)
     # operator_t.MULTIPLY.patch_artist(plot)
     # operator_t.SOURCE.patch_artist(empreendimentos_plot)
 
